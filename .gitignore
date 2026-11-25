@@ -135,3 +135,6 @@ dmypy.json
 # ML models and Pickle
 *.pkl
 *.h5
+
+# Trained models and plots
+assets/
