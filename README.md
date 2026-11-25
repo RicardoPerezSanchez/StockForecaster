@@ -44,4 +44,6 @@ The model is only useful if it is significantly better than these baselines.
 - **Simulation** (`src/backtest.py`): decisions use the data known at a close and are executed at the next open. Each purchase or sale costs 0.05%, and the money out of the market earns the 3-month Treasury bill rate.
 - **Selection**: the rules are ranked by their annual return in 2001-2014, the best 20 are compared in 2015-2019 and the best one there is chosen. It is then evaluated from 2020 onwards, a period not used to choose it, next to buying and holding SPY and to keeping the money in cash. It is also checked with double costs.
 
-The chosen rule is saved to `assets/best_rule.json` and its equity curve to `assets/rules_equity.png`. Past results do not guarantee future ones: the more rules are tried, the more likely the best one is good by chance, which is why only the test period gives a fair estimate.
+The chosen rule is saved to `assets/best_rule.json` and its equity curve to `assets/rules_equity.png`.
+
+`python src/compare_exits.py` compares ways of selling for the chosen rule (buy when RSI(5) closes below 30 and the 10-year yield fell in 5 days): after 5 days, when RSI(5) closes above 70 or after 5 days, and when RSI(5) closes above 70 with no time limit. It prints the results of each period next to buy and hold and cash, and saves the equity curves to `assets/exits_equity.png`. Past results do not guarantee future ones: the more rules are tried, the more likely the best one is good by chance, which is why only the test period gives a fair estimate.

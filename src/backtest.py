@@ -4,8 +4,8 @@ How a rule is simulated:
 - Every decision uses the data known at the close of a day and is executed
   at the open of the next day.
 - A trade buys SPY with all the capital and sells it after at most MAX_HOLD
-  trading days. A new trade can only start the day after the previous one
-  ends.
+  trading days (unless the exit has no time limit). A new trade can only
+  start the day after the previous one ends.
 - Every purchase and every sale costs COST (commission, spread and slippage).
 - While out of the market the money earns the 3-month Treasury bill rate.
 - SPY prices are adjusted for dividends, so holding SPY includes them.
@@ -104,10 +104,13 @@ def add_indicators(market):
 
 @dataclass(frozen=True)
 class Exit:
-    """When to sell: after `days` days at most, or earlier if `signal` is true at a close."""
+    """When to sell: after `days` days at most, or earlier if `signal` is true at a close.
+
+    days=None means no time limit: the trade lasts until the signal is true.
+    """
     name: str
     days: int = MAX_HOLD
-    signal: str = None   # 'rsi2>50', 'rsi2>70', 'above_sma5', 'up_close', 'profit'
+    signal: str = None   # 'rsi2>50', 'rsi2>70', 'rsi5>70', 'above_sma5', 'up_close', 'profit'
 
 
 def simulate(m, entry, exit_rule, cost=COST):
@@ -120,7 +123,7 @@ def simulate(m, entry, exit_rule, cost=COST):
     o = m['open'].values
     c = m['close'].values
     n = len(o)
-    rsi2, sma5 = m['rsi_2'].values, m['sma_5'].values
+    rsi2, rsi5, sma5 = m['rsi_2'].values, m['rsi_5'].values, m['sma_5'].values
     candidates = np.flatnonzero(np.asarray(entry, dtype=bool))
 
     position = np.zeros(n)
@@ -132,8 +135,10 @@ def simulate(m, entry, exit_rule, cost=COST):
             break
         start = candidates[k] + 1   # bought at this open
         end = n - 1
-        for d in range(start, min(start + exit_rule.days, n - 1)):   # closes while held
-            if d == start + exit_rule.days - 1 or _exit_signal(exit_rule.signal, d, start, o, c, rsi2, sma5):
+        last = n - 1 if exit_rule.days is None else min(start + exit_rule.days, n - 1)
+        for d in range(start, last):   # closes while held
+            time_up = exit_rule.days is not None and d == start + exit_rule.days - 1
+            if time_up or _exit_signal(exit_rule.signal, d, start, o, c, rsi2, rsi5, sma5):
                 end = d + 1   # sold at the next open
                 break
         position[start:end] = 1
@@ -147,13 +152,15 @@ def simulate(m, entry, exit_rule, cost=COST):
     return returns, position, trades
 
 
-def _exit_signal(signal, d, start, o, c, rsi2, sma5):
+def _exit_signal(signal, d, start, o, c, rsi2, rsi5, sma5):
     if signal is None:
         return False
     if signal == 'rsi2>50':
         return rsi2[d] > 50
     if signal == 'rsi2>70':
         return rsi2[d] > 70
+    if signal == 'rsi5>70':
+        return rsi5[d] > 70
     if signal == 'above_sma5':
         return c[d] > sma5[d]
     if signal == 'up_close':
@@ -164,7 +171,8 @@ def _exit_signal(signal, d, start, o, c, rsi2, sma5):
 
 
 def period_slice(index, period):
-    start, end = PERIODS[period]
+    """Indices of a period: the name of one of PERIODS, or a (start, end) tuple."""
+    start, end = PERIODS[period] if isinstance(period, str) else period
     days = (index >= pd.Timestamp(start)) & (index <= pd.Timestamp(end or index[-1]))
     return np.flatnonzero(days)
 
@@ -177,8 +185,8 @@ def metrics(m, returns, position, trades, period, cost=COST):
     equity = np.cumprod(1 + r)
     years = len(r) / TRADING_DAYS
     o = m['open'].values
-    trade_returns = np.array([o[end] / o[start] * (1 - cost) ** 2 - 1
-                              for start, end in trades if days[0] <= start <= days[-1]])
+    in_period = [(start, end) for start, end in trades if days[0] <= start <= days[-1]]
+    trade_returns = np.array([o[end] / o[start] * (1 - cost) ** 2 - 1 for start, end in in_period])
     return {
         'total_return': equity[-1] - 1,
         'cagr': equity[-1] ** (1 / years) - 1,
@@ -189,6 +197,7 @@ def metrics(m, returns, position, trades, period, cost=COST):
         'trades': len(trade_returns),
         'win_rate': (trade_returns > 0).mean() if len(trade_returns) else 0.0,
         'avg_trade': trade_returns.mean() if len(trade_returns) else 0.0,
+        'avg_days': np.mean([end - start for start, end in in_period]) if in_period else 0.0,
     }
 
 
