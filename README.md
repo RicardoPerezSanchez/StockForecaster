@@ -35,3 +35,13 @@ Each prediction uses the real data up to the day before, so the model is compare
 - The percentage of days on which the model gets the direction right, next to the percentage of days the S&P 500 rises (the accuracy of always predicting a rise).
 
 The model is only useful if it is significantly better than these baselines.
+
+## Trading rules
+
+`python src/search_rules.py` searches long-only trading rules for SPY (the S&P 500 ETF, dividends included) with trades of at most 5 trading days. It takes less than a minute.
+
+- **Rules**: an entry signal (oversold RSI, down closes in a row, drops from the 5-day high, Bollinger bands, moving averages, new highs, turn of the month), a filter that must also hold (200-day trend, volatility, world indices, 10-year yield, gold, crude) and an exit (after 1 to 5 days, or earlier on an RSI, moving average or price signal).
+- **Simulation** (`src/backtest.py`): decisions use the data known at a close and are executed at the next open. Each purchase or sale costs 0.05%, and the money out of the market earns the 3-month Treasury bill rate.
+- **Selection**: the rules are ranked by their annual return in 2001-2014, the best 20 are compared in 2015-2019 and the best one there is chosen. It is then evaluated from 2020 onwards, a period not used to choose it, next to buying and holding SPY and to keeping the money in cash. It is also checked with double costs.
+
+The chosen rule is saved to `assets/best_rule.json` and its equity curve to `assets/rules_equity.png`. Past results do not guarantee future ones: the more rules are tried, the more likely the best one is good by chance, which is why only the test period gives a fair estimate.
