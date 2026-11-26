@@ -21,7 +21,8 @@ import yfinance as yf
 TICKER = 'SPY'
 CASH_TICKER = '^IRX'   # 3-month Treasury bill rate, in % per year
 WORLD_INDICES = ['^N225', '^HSI', '000001.SS', '^FTSE', '^GDAXI']
-SIGNAL_TICKERS = {'gold': 'GC=F', 'crude': 'CL=F', 'yield_10y': '^TNX'}
+SIGNAL_TICKERS = {'gold': 'GC=F', 'crude': 'CL=F', 'yield_10y': '^TNX',
+                  'vix': '^VIX', 'vix_3m': '^VIX3M', 'skew': '^SKEW'}   # VIX 3-month starts in July 2006
 
 DATA_START = '1993-01-01'   # SPY starts trading in 1993; the early years warm up the indicators
 PERIODS = {
@@ -95,6 +96,11 @@ def add_indicators(market):
     m['yield_10y_5d'] = m['yield_10y'].diff(5)
     m['gold_20d'] = np.log(m['gold']).diff(20)
     m['crude_20d'] = np.log(m['crude']).diff(20)
+    m['vix_median'] = m['vix'].rolling(TRADING_DAYS).median()
+    m['vix_mean_10'] = m['vix'].rolling(10).mean()
+    m['vix_5d'] = np.log(m['vix']).diff(5)
+    m['vix_term'] = m['vix'] / m['vix_3m']   # above 1: short-term fear (empty before July 2006)
+    m['skew_median'] = m['skew'].rolling(TRADING_DAYS).median()
     # The next trading day is the last one of its month (the calendar of
     # trading days is known in advance)
     month = pd.Series(m.index.month, index=m.index)

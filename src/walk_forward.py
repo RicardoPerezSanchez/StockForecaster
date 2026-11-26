@@ -9,8 +9,8 @@ import argparse
 
 import numpy as np
 
-from common import (SEED, TARGET, WINDOW, Normalizer, load_dataset, make_windows,
-                    predict_returns, split_index, train_model)
+from common import (FEATURE_GROUPS, MODEL_GROUPS, SEED, START_DATE, WINDOW, Normalizer,
+                    load_dataset, make_windows, predict_returns, split_index, train_model)
 from evaluation import evaluate, print_report
 
 parser = argparse.ArgumentParser(description=__doc__,
@@ -19,13 +19,15 @@ parser.add_argument('--seeds', type=int, default=3,
                     help='number of random seeds (default: 3)')
 parser.add_argument('--retrain-every', type=int, default=252,
                     help='trading days between retrainings (default: 252, about a year)')
-parser.add_argument('--sp500-only', action='store_true',
-                    help='use only the S&P 500 as input, to measure what the other variables add')
+parser.add_argument('--groups', nargs='*', default=list(MODEL_GROUPS), choices=list(FEATURE_GROUPS),
+                    help='groups of input variables besides the S&P 500 (default: %(default)s). '
+                         'Pass --groups alone to use only the S&P 500')
+parser.add_argument('--start', default=START_DATE,
+                    help='first date of the data (default: %(default)s). Use the same date to '
+                         'compare groups over the same days, since some variables start later')
 args = parser.parse_args()
 
-features, close, previous_close = load_dataset()
-if args.sp500_only:
-    features = features[[TARGET]]
+features, close, previous_close = load_dataset(args.groups, args.start)
 n_days = len(features)
 split = split_index(n_days)
 seeds = [SEED + i for i in range(args.seeds)]

@@ -48,6 +48,8 @@ def entry_signals(m):
         signals[f'close above SMA({n})'] = c > m[f'sma_{n}']
     for n in (5, 10, 20):
         signals[f'{n}-day closing high'] = c >= c.rolling(n).max()
+    signals['VIX 20% above its 10-day average'] = m['vix'] > 1.2 * m['vix_mean_10']
+    signals['VIX above the 3-month VIX (data since 2006)'] = m['vix_term'] > 1
     signals['turn of the month (buy on the last trading day)'] = m['before_last_day_of_month']
     signals['every day'] = pd.Series(True, index=m.index)
     return signals
@@ -71,6 +73,16 @@ def filters(m):
         'gold fell in 20 days': m['gold_20d'] < 0,
         'crude rose in 20 days': m['crude_20d'] > 0,
         'crude fell in 20 days': m['crude_20d'] < 0,
+        'VIX above its 1-year median': m['vix'] > m['vix_median'],
+        'VIX below its 1-year median': m['vix'] < m['vix_median'],
+        'VIX above 30': m['vix'] > 30,
+        'VIX rose in 5 days': m['vix_5d'] > 0,
+        'VIX fell in 5 days': m['vix_5d'] < 0,
+        # Before July 2006 there is no 3-month VIX, so these filters never pass
+        'VIX above the 3-month VIX (data since 2006)': m['vix_term'] > 1,
+        'VIX below the 3-month VIX (data since 2006)': m['vix_term'] < 1,
+        'SKEW above its 1-year median': m['skew'] > m['skew_median'],
+        'SKEW below its 1-year median': m['skew'] < m['skew_median'],
     }
 
 
