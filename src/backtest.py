@@ -38,18 +38,20 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 ASSETS_DIR = ROOT_DIR / 'assets'
 
 
-def download_market_data():
-    """SPY open and close, cash rate and signal variables on SPY's trading days.
+def download_markets(tickers):
+    """Open and close of each ticker, with the cash rate and the signal variables.
 
-    Other markets have other holidays: each day takes the last known value of
-    every variable. Only full days are used (the data ends yesterday).
+    Returns {ticker: DataFrame indexed by that ticker's trading days}. Other
+    markets have other holidays: each day takes the last known value of every
+    variable. Only full days are used (the data ends yesterday).
     """
-    tickers = [TICKER, CASH_TICKER, *WORLD_INDICES, *SIGNAL_TICKERS.values()]
-    data = yf.download(tickers, start=DATA_START, end=date.today().isoformat(),
+    signals = [CASH_TICKER, *WORLD_INDICES, *SIGNAL_TICKERS.values()]
+    all_tickers = list(dict.fromkeys([*tickers, *signals]))
+    data = yf.download(all_tickers, start=DATA_START, end=date.today().isoformat(),
                        progress=False)
     # yf.download does not raise when a download fails: it leaves the data empty
     close = data['Close'] if not data.empty else pd.DataFrame()
-    missing = [t for t in tickers if t not in close or close[t].isna().all()]
+    missing = [t for t in all_tickers if t not in close or close[t].isna().all()]
     if missing:
         raise RuntimeError(f'No data downloaded for {", ".join(missing)}.')
 
@@ -57,19 +59,28 @@ def download_market_data():
     # A price must be positive (WTI crude closed at -37.63 on 2020-04-20)
     crude = SIGNAL_TICKERS['crude']
     close[crude] = close[crude].where(close[crude] > 0)
-    trading_days = data['Open'][TICKER].dropna().index
-    known = close.ffill().loc[trading_days]
+    known_values = close.ffill()
 
-    market = pd.DataFrame({
-        'open': data['Open'][TICKER].loc[trading_days],
-        'close': data['Close'][TICKER].loc[trading_days],
-        'cash_rate': known[CASH_TICKER],
-    })
-    for name, ticker in SIGNAL_TICKERS.items():
-        market[name] = known[ticker]
-    for ticker in WORLD_INDICES:
-        market[ticker] = known[ticker]
-    return market
+    markets = {}
+    for ticker in tickers:
+        trading_days = data['Open'][ticker].dropna().index
+        known = known_values.loc[trading_days]
+        market = pd.DataFrame({
+            'open': data['Open'][ticker].loc[trading_days],
+            'close': data['Close'][ticker].loc[trading_days],
+            'cash_rate': known[CASH_TICKER],
+        })
+        for name, signal_ticker in SIGNAL_TICKERS.items():
+            market[name] = known[signal_ticker]
+        for index_ticker in WORLD_INDICES:
+            market[index_ticker] = known[index_ticker]
+        markets[ticker] = market
+    return markets
+
+
+def download_market_data():
+    """SPY open and close, cash rate and signal variables on SPY's trading days."""
+    return download_markets([TICKER])[TICKER]
 
 
 def rsi(close, n):
