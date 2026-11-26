@@ -1,6 +1,6 @@
 # StockForecaster
 
-LSTM model to predict the next day's close of the S&P 500. Besides the S&P 500 itself, the model uses US interest rates, gold, crude oil, five major world indices, the VIX and the SKEW index.
+LSTM model to predict the next day's close of the S&P 500. Besides the S&P 500 itself, the model uses US interest rates, gold, crude oil and five major world indices.
 
 ## Installation
 
@@ -15,9 +15,9 @@ pip install -r requirements.txt
 - **Data**: daily closes from Yahoo Finance, from 2000 to 2022. Besides the S&P 500, the inputs come in groups, defined in `src/common.py`:
   - `markets`: the Nikkei 225, the Hang Seng, the Shanghai Composite, the FTSE 100, the DAX, gold and WTI crude futures, and the US 10-year and 3-month Treasury yields.
   - `vix`: the VIX (expected volatility of the S&P 500) and the SKEW index (demand for protection against large falls).
-  - `vix_term`: the VIX divided by the 3-month VIX; above 1 it signals short-term fear. Its data starts in July 2006, so it is not used by default.
+  - `vix_term`: the VIX divided by the 3-month VIX; above 1 it signals short-term fear. Its data starts in July 2006.
 
-  The model uses `markets` and `vix` (`MODEL_GROUPS`). Gold and crude data start in August 2000, so the dataset starts there.
+  The model uses only `markets` (`MODEL_GROUPS`): in `walk_forward.py`, adding `vix` or `vix_term` made the predictions slightly worse. Gold and crude data start in August 2000, so the dataset starts there.
 - **Features**: daily log returns of the prices, daily changes of the interest rates and the logarithm of the VIX, the SKEW and the VIX ratio, standardized with the mean and deviation of the training period. Other markets have other holidays: each S&P 500 trading day takes the last known value of every variable.
 - **Target**: the S&P 500 log return of the next day, predicted from the previous 60 days of every variable. The predicted price is the previous close moved by that return.
 - **Model**: one LSTM layer of 32 units with dropout. Training stops when the loss on the most recent 10% of the training data stops improving.

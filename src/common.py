@@ -49,7 +49,9 @@ FEATURE_GROUPS = {
         'VIX / VIX 3-month': (('^VIX', '^VIX3M'), 'ratio'),
     },
 }
-MODEL_GROUPS = ('markets', 'vix')   # Groups used by train_model.py and test_model.py
+# Groups used by train_model.py and test_model.py. In walk_forward.py, adding
+# 'vix' or 'vix_term' did not improve the predictions, so they are left out.
+MODEL_GROUPS = ('markets',)
 
 WINDOW = 60              # Number of past days used as input for each prediction
 TEST_SIZE = 0.2          # Fraction of the most recent days kept for testing
